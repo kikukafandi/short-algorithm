@@ -3,7 +3,7 @@
 Visualisasi algoritma sorting interaktif dalam format **Reels (9:16)** menggunakan meme sebagai elemen visual + audio feedback + auto recording.
 
 ---
-
+![main_page_banner](https://blogger.googleusercontent.com/img/a/AVvXsEhzBe7UHQnP2mBuD3aKXON5-cC3PzIyCpzdouWJPOf1i5tBWFo2dAvOif-UbFGLw83U0ZzwX8wC-9MPcEGoOip2yr4xJj2cxeIzzh9twQ4Rm1qpsKW2ILJkEEM5dir0mCFKjLpHkSE3fl9qV7SDCWYXWXBTCQKDDWSRekBJLp2eTF6VCgPf_53hvRR5TN3v)
 ## 🇮🇩 Deskripsi
 
 Project ini adalah web app untuk memvisualisasikan berbagai **sorting algorithm** dengan cara yang unik:
