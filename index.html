@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meme Sorting Algorithm Reels</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Poppins:wght@400;700;900&display=swap');
+
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* 9:16 Aspect Ratio Container for Reels */
+        .reels-container {
+            width: 100%;
+            max-width: 400px;
+            aspect-ratio: 9/16;
+            background-color: #000000;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            border-radius: 16px;
+            border: 1px solid #333;
+        }
+
+        .bar {
+            flex: 1;
+            /* Menghapus margin agar potongan tetap mulus walau jumlahnya banyak */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: 4px 4px 0 0;
+            transition: height 0.1s ease-in-out, filter 0.1s;
+            position: relative;
+            border-right: 1px solid rgba(0,0,0,0.5); /* Memberi sedikit batas hitam antar bar */
+        }
+        
+        .bar:last-child {
+            border-right: none;
+        }
+
+        .bar.active {
+            border: 2px solid #ff3b30;
+            filter: brightness(1.5) contrast(1.2);
+            z-index: 10;
+        }
+
+        .code-block {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.70rem; /* Sedikit dikecilkan agar muat banyak baris */
+            line-height: 1.2;
+            white-space: pre-wrap;
+        }
+
+        .scanlines {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row items-center justify-center min-h-screen p-4 gap-8">
+
+    <!-- Controls / Sidebar (Tidak masuk record) -->
+    <div class="flex flex-col gap-4 w-full max-w-xs bg-gray-900 p-6 rounded-xl border border-gray-700">
+        <h2 class="text-xl font-bold text-blue-400">Pengaturan Reels</h2>
+        
+        <div>
+            <label class="block text-sm mb-1 text-gray-400">Pilih Algoritma:</label>
+            <select id="algoSelect" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white outline-none focus:border-blue-500">
+                <option value="bubble">1. Bubble Sort</option>
+                <option value="selection">2. Selection Sort</option>
+                <option value="insertion">3. Insertion Sort</option>
+                <option value="merge">4. Merge Sort</option>
+                <option value="quick">5. Quick Sort</option>
+                <option value="heap">6. Heap Sort</option>
+                <option value="radix">7. Radix Sort</option>
+                <option value="shell">8. Shell Sort</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm mb-1 text-gray-400">Bahasa Pemrograman:</label>
+            <select id="langSelect" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white outline-none focus:border-green-500">
+                <option value="python">Python</option>
+                <option value="javascript">JavaScript</option>
+                <option value="cpp">C++</option>
+                <option value="java">Java</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm mb-1 text-gray-400">Kecepatan (ms):</label>
+            <input type="range" id="speedInput" min="10" max="500" value="100" class="w-full">
+        </div>
+
+        <div>
+            <label class="block text-sm mb-1 text-gray-400">Jumlah Potongan (Bar): <span id="barLabel" class="text-blue-400 font-bold">20</span></label>
+            <input type="range" id="barInput" min="4" max="80" value="20" class="w-full">
+        </div>
+
+        <div class="border-t border-gray-700 pt-3">
+            <label class="block text-sm mb-1 text-gray-400">Custom Gambar (Opsional):</label>
+            <input type="file" id="customUpload" accept="image/*" class="w-full text-xs text-gray-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600 mb-2">
+            <div class="flex gap-2">
+                <input type="text" id="customUrl" placeholder="Paste URL Gambar..." class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-xs text-white outline-none focus:border-blue-500">
+                <button id="applyUrlBtn" class="bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold py-1 px-3 rounded transition">Terapkan</button>
+            </div>
+        </div>
+
+        <div class="flex gap-2 mt-2">
+            <button onclick="generateArray(true)" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold py-2 px-2 rounded transition">
+                🔄 Ganti Random
+            </button>
+            <button onclick="generateArray(false)" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold py-2 px-2 rounded transition">
+                🔀 Acak Urutan
+            </button>
+        </div>
+        
+        <button onclick="startSorting()" id="startBtn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded transition flex justify-center items-center gap-2 mt-2">
+            ▶️ Mulai Animasi
+        </button>
+    </div>
+
+    <!-- REELS CONTAINER (Area untuk direkam 9:16) -->
+    <div class="reels-container flex flex-col relative p-4 pt-8" id="reelArea">
+        <div class="scanlines"></div>
+        
+        <!-- Header text (menggunakan flex flow normal agar dinamis) -->
+        <div class="w-full text-center z-40 drop-shadow-lg flex-shrink-0">
+            <h1 id="reelTitle" class="text-3xl font-black text-white uppercase tracking-wider" style="-webkit-text-stroke: 1px black;">
+                BUBBLE SORT
+            </h1>
+            <p class="text-yellow-400 font-bold text-sm mt-1 bg-black/50 inline-block px-3 py-1 rounded-full border border-yellow-500/50">
+                Algorithm Visualization
+            </p>
+        </div>
+
+        <!-- Visualizer Area (flex-1 agar otomatis mengisi sisa ruang tanpa tertindih) -->
+        <div class="flex-1 w-full flex items-end justify-center z-20 py-4 relative">
+            <div id="barsContainer" class="w-full h-[85%] flex items-end">
+                <!-- Bars generated here -->
+            </div>
+        </div>
+
+        <!-- Code Snippet Area (flex-shrink-0 agar tingginya menyesuaikan isi kode secara otomatis) -->
+        <div class="w-full bg-black/80 backdrop-blur-md border border-gray-600 rounded-lg p-3 z-40 shadow-2xl flex-shrink-0 mb-2">
+            <div class="flex items-center gap-2 mb-2">
+                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                <span class="text-xs text-gray-400 font-bold ml-2" id="codeTitle">bubble_sort.py</span>
+            </div>
+            <pre class="code-block text-green-400"><code id="codeDisplay">Loading...</code></pre>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA & CONFIG ---
+        let BARS_COUNT = 20; 
+        let arrayData = []; 
+        let isSorting = false;
+        let abortController = null;
+        let selectedMeme = ""; 
+        
+        const memeUrls = [
+            'https://i.imgflip.com/1g8my4.jpg', 'https://i.imgflip.com/1ur9b0.jpg',
+            'https://i.imgflip.com/4t0m5.jpg',  'https://i.imgflip.com/261o3j.jpg',
+            'https://i.imgflip.com/1jwhww.jpg', 'https://i.imgflip.com/30b1gx.jpg',
+            'https://i.imgflip.com/9vct.jpg',   'https://i.imgflip.com/24y43o.jpg',
+            'https://i.imgflip.com/1o00in.jpg', 'https://i.imgflip.com/2wifvo.jpg'
+        ];
+
+        // Dictionary Ekstensi File
+        const extensions = {
+            python: ".py",
+            javascript: ".js",
+            cpp: ".cpp",
+            java: ".java"
+        };
+
+        // Kumpulan Kode Multi Bahasa
+        const codes = {
+            bubble: {
+                python: `def bubble_sort(arr):\n  n = len(arr)\n  for i in range(n):\n    for j in range(0, n-i-1):\n      if arr[j] > arr[j+1]:\n        arr[j], arr[j+1] = arr[j+1], arr[j]`,
+                javascript: `function bubbleSort(arr) {\n  let n = arr.length;\n  for (let i = 0; i < n; i++) {\n    for (let j = 0; j < n-i-1; j++) {\n      if (arr[j] > arr[j+1]) {\n        [arr[j], arr[j+1]] = [arr[j+1], arr[j]];\n      }\n    }\n  }\n}`,
+                cpp: `void bubbleSort(int arr[], int n) {\n  for (int i = 0; i < n-1; i++)\n    for (int j = 0; j < n-i-1; j++)\n      if (arr[j] > arr[j+1])\n        swap(arr[j], arr[j+1]);\n}`,
+                java: `void bubbleSort(int arr[]) {\n  int n = arr.length;\n  for (int i = 0; i < n-1; i++)\n    for (int j = 0; j < n-i-1; j++)\n      if (arr[j] > arr[j+1]) {\n        int temp = arr[j];\n        arr[j] = arr[j+1]; arr[j+1] = temp;\n      }\n}`
+            },
+            selection: {
+                python: `def selection_sort(arr):\n  for i in range(len(arr)):\n    min_idx = i\n    for j in range(i+1, len(arr)):\n      if arr[min_idx] > arr[j]:\n        min_idx = j\n    arr[i], arr[min_idx] = arr[min_idx], arr[i]`,
+                javascript: `function selectionSort(arr) {\n  for (let i = 0; i < arr.length; i++) {\n    let min = i;\n    for (let j = i+1; j < arr.length; j++) {\n      if (arr[j] < arr[min]) min = j;\n    }\n    if (min !== i) [arr[i], arr[min]] = [arr[min], arr[i]];\n  }\n}`,
+                cpp: `void selectionSort(int arr[], int n) {\n  for (int i = 0; i < n-1; i++) {\n    int min_idx = i;\n    for (int j = i+1; j < n; j++)\n      if (arr[j] < arr[min_idx]) min_idx = j;\n    swap(arr[min_idx], arr[i]);\n  }\n}`,
+                java: `void selectionSort(int arr[]) {\n  int n = arr.length;\n  for (int i = 0; i < n-1; i++) {\n    int min_idx = i;\n    for (int j = i+1; j < n; j++)\n      if (arr[j] < arr[min_idx]) min_idx = j;\n    int t = arr[min_idx]; arr[min_idx] = arr[i]; arr[i] = t;\n  }\n}`
+            },
+            insertion: {
+                python: `def insertion_sort(arr):\n  for i in range(1, len(arr)):\n    key = arr[i]\n    j = i-1\n    while j >=0 and key < arr[j]:\n      arr[j+1] = arr[j]\n      j -= 1\n    arr[j+1] = key`,
+                javascript: `function insertionSort(arr) {\n  for (let i = 1; i < arr.length; i++) {\n    let key = arr[i];\n    let j = i - 1;\n    while (j >= 0 && arr[j] > key) {\n      arr[j + 1] = arr[j];\n      j = j - 1;\n    }\n    arr[j + 1] = key;\n  }\n}`,
+                cpp: `void insertionSort(int arr[], int n) {\n  for (int i = 1; i < n; i++) {\n    int key = arr[i], j = i - 1;\n    while (j >= 0 && arr[j] > key) {\n      arr[j + 1] = arr[j];\n      j = j - 1;\n    }\n    arr[j + 1] = key;\n  }\n}`,
+                java: `void insertionSort(int arr[]) {\n  int n = arr.length;\n  for (int i = 1; i < n; ++i) {\n    int key = arr[i], j = i - 1;\n    while (j >= 0 && arr[j] > key) {\n      arr[j + 1] = arr[j];\n      j = j - 1;\n    }\n    arr[j + 1] = key;\n  }\n}`
+            },
+            merge: {
+                python: `def merge_sort(arr):\n  if len(arr) > 1:\n    mid = len(arr)//2\n    L, R = arr[:mid], arr[mid:]\n    merge_sort(L)\n    merge_sort(R)\n    # Logic merge (menggabungkan) L dan R`,
+                javascript: `function mergeSort(arr) {\n  if (arr.length <= 1) return arr;\n  const mid = Math.floor(arr.length / 2);\n  const left = mergeSort(arr.slice(0, mid));\n  const right = mergeSort(arr.slice(mid));\n  // Return merged left & right\n}`,
+                cpp: `void mergeSort(int arr[], int l, int r) {\n  if (l >= r) return;\n  int m = l + (r - l) / 2;\n  mergeSort(arr, l, m);\n  mergeSort(arr, m + 1, r);\n  merge(arr, l, m, r);\n}`,
+                java: `void sort(int arr[], int l, int r) {\n  if (l < r) {\n    int m = l + (r - l) / 2;\n    sort(arr, l, m);\n    sort(arr, m + 1, r);\n    merge(arr, l, m, r);\n  }\n}`
+            },
+            quick: {
+                python: `def quick_sort(arr, low, high):\n  if low < high:\n    pi = partition(arr, low, high)\n    quick_sort(arr, low, pi-1)\n    quick_sort(arr, pi+1, high)\n# Rekursif Quick Sort`,
+                javascript: `function quickSort(arr) {\n  if (arr.length <= 1) return arr;\n  let pivot = arr[0], left = [], right = [];\n  for (let i = 1; i < arr.length; i++) {\n    arr[i] < pivot ? left.push(arr[i]) : right.push(arr[i]);\n  }\n  return [...quickSort(left), pivot, ...quickSort(right)];\n}`,
+                cpp: `void quickSort(int arr[], int low, int high) {\n  if (low < high) {\n    int pi = partition(arr, low, high);\n    quickSort(arr, low, pi - 1);\n    quickSort(arr, pi + 1, high);\n  }\n}`,
+                java: `void quickSort(int arr[], int low, int high) {\n  if (low < high) {\n    int pi = partition(arr, low, high);\n    quickSort(arr, low, pi-1);\n    quickSort(arr, pi+1, high);\n  }\n}`
+            },
+            heap: {
+                python: `def heap_sort(arr):\n  n = len(arr)\n  for i in range(n // 2 - 1, -1, -1):\n    heapify(arr, n, i)\n  for i in range(n-1, 0, -1):\n    arr[i], arr[0] = arr[0], arr[i]\n    heapify(arr, i, 0)`,
+                javascript: `function heapSort(arr) {\n  let n = arr.length;\n  for (let i = Math.floor(n / 2) - 1; i >= 0; i--) heapify(arr, n, i);\n  for (let i = n - 1; i > 0; i--) {\n    [arr[0], arr[i]] = [arr[i], arr[0]];\n    heapify(arr, i, 0);\n  }\n}`,
+                cpp: `void heapSort(int arr[], int n) {\n  for (int i = n / 2 - 1; i >= 0; i--) heapify(arr, n, i);\n  for (int i = n - 1; i > 0; i--) {\n    swap(arr[0], arr[i]);\n    heapify(arr, i, 0);\n  }\n}`,
+                java: `public void sort(int arr[]) {\n  int n = arr.length;\n  for (int i = n / 2 - 1; i >= 0; i--) heapify(arr, n, i);\n  for (int i = n - 1; i > 0; i--) {\n    int temp = arr[0]; arr[0] = arr[i]; arr[i] = temp;\n    heapify(arr, i, 0);\n  }\n}`
+            },
+            radix: {
+                python: `def radix_sort(arr):\n  max1 = max(arr)\n  exp = 1\n  while max1 / exp >= 1:\n    counting_sort(arr, exp)\n    exp *= 10`,
+                javascript: `function radixSort(arr) {\n  let max = Math.max(...arr);\n  for (let exp = 1; Math.floor(max / exp) > 0; exp *= 10) {\n    countingSort(arr, exp);\n  }\n}`,
+                cpp: `void radixsort(int arr[], int n) {\n  int m = getMax(arr, n);\n  for (int exp = 1; m / exp > 0; exp *= 10)\n    countSort(arr, n, exp);\n}`,
+                java: `void radixsort(int arr[], int n) {\n  int m = getMax(arr, n);\n  for (int exp = 1; m / exp > 0; exp *= 10)\n    countSort(arr, n, exp);\n}`
+            },
+            shell: {
+                python: `def shell_sort(arr):\n  n = len(arr)\n  gap = n // 2\n  while gap > 0:\n    for i in range(gap, n):\n      temp = arr[i]\n      j = i\n      while j >= gap and arr[j - gap] > temp:\n        arr[j] = arr[j - gap]\n        j -= gap\n      arr[j] = temp\n    gap //= 2`,
+                javascript: `function shellSort(arr) {\n  let n = arr.length;\n  for (let gap = Math.floor(n/2); gap > 0; gap = Math.floor(gap/2)) {\n    for (let i = gap; i < n; i++) {\n      let temp = arr[i], j;\n      for (j = i; j >= gap && arr[j - gap] > temp; j -= gap)\n        arr[j] = arr[j - gap];\n      arr[j] = temp;\n    }\n  }\n}`,
+                cpp: `void shellSort(int arr[], int n) {\n  for (int gap = n/2; gap > 0; gap /= 2) {\n    for (int i = gap; i < n; i += 1) {\n      int temp = arr[i], j;\n      for (j = i; j >= gap && arr[j - gap] > temp; j -= gap)\n        arr[j] = arr[j - gap];\n      arr[j] = temp;\n    }\n  }\n}`,
+                java: `int shellSort(int arr[]) {\n  int n = arr.length;\n  for (int gap = n/2; gap > 0; gap /= 2) {\n    for (int i = gap; i < n; i += 1) {\n      int temp = arr[i], j;\n      for (j = i; j >= gap && arr[j - gap] > temp; j -= gap)\n        arr[j] = arr[j - gap];\n      arr[j] = temp;\n    }\n  }\n  return 0;\n}`
+            }
+        };
+
+        const titles = {
+            bubble: "BUBBLE SORT", selection: "SELECTION SORT", insertion: "INSERTION SORT",
+            merge: "MERGE SORT", quick: "QUICK SORT", heap: "HEAP SORT",
+            radix: "RADIX SORT", shell: "SHELL SORT"
+        };
+
+        // --- AUDIO SYSTEM ---
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playNote(freq) {
+            if (!audioCtx) return;
+            try {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.type = 'square'; 
+                oscillator.frequency.value = freq;
+                gainNode.gain.setValueAtTime(0.02, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            } catch(e) {}
+        }
+
+        // --- UI & GENERATION ---
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function generateArray(randomizeMeme = true) {
+            if (isSorting) return;
+            const container = document.getElementById('barsContainer');
+            container.innerHTML = '';
+            arrayData = [];
+            
+            // Mengambil nilai terbaru dari slider Jumlah Bar
+            BARS_COUNT = parseInt(document.getElementById('barInput').value);
+            
+            if (randomizeMeme || selectedMeme === "") {
+                selectedMeme = memeUrls[Math.floor(Math.random() * memeUrls.length)];
+            }
+
+            for (let i = 0; i < BARS_COUNT; i++) arrayData.push({ value: i });
+            shuffle(arrayData);
+
+            for (let i = 0; i < BARS_COUNT; i++) {
+                const data = arrayData[i];
+                const bar = document.createElement('div');
+                bar.classList.add('bar');
+                
+                bar.style.height = `100%`;
+                bar.style.backgroundImage = `url('${selectedMeme}')`;
+                bar.style.backgroundSize = `${BARS_COUNT * 100}% 100%`;
+                bar.style.backgroundPosition = `${(data.value / (BARS_COUNT - 1)) * 100}% center`;
+                bar.id = `bar-${i}`;
+                
+                container.appendChild(bar);
+            }
+            updateUI();
+        }
+
+        function updateUI() {
+            const algo = document.getElementById('algoSelect').value;
+            const lang = document.getElementById('langSelect').value;
+            
+            document.getElementById('reelTitle').innerText = titles[algo];
+            
+            // Set File name: e.g., "bubble_sort.js"
+            document.getElementById('codeTitle').innerText = `${algo}_sort${extensions[lang]}`;
+            
+            // Set Code snippet
+            document.getElementById('codeDisplay').innerText = codes[algo][lang];
+        }
+
+        document.getElementById('algoSelect').addEventListener('change', updateUI);
+        document.getElementById('langSelect').addEventListener('change', updateUI);
+
+        // Listener untuk slider jumlah bar agar gambar otomatis di-slice ulang
+        document.getElementById('barInput').addEventListener('input', (e) => {
+            document.getElementById('barLabel').innerText = e.target.value;
+            generateArray(false); // merender ulang potongan tanpa mengubah meme
+        });
+
+        // --- CUSTOM IMAGE LISTENERS ---
+        document.getElementById('applyUrlBtn').addEventListener('click', () => {
+            const url = document.getElementById('customUrl').value;
+            if (url) {
+                selectedMeme = url;
+                generateArray(false); // Render ulang tanpa ganti URL
+            }
+        });
+
+        document.getElementById('customUpload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    selectedMeme = event.target.result;
+                    generateArray(false); // Render ulang tanpa ganti image
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // --- VISUALIZATION HELPERS ---
+        function getDelay() { return parseInt(document.getElementById('speedInput').value); }
+        function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+        async function setBar(index, data, highlight = false) {
+            if (abortController.signal.aborted) throw new Error('Aborted');
+            
+            const bar = document.getElementById(`bar-${index}`);
+            
+            bar.style.height = `100%`;
+            bar.style.backgroundImage = `url('${selectedMeme}')`;
+            bar.style.backgroundSize = `${BARS_COUNT * 100}% 100%`;
+            bar.style.backgroundPosition = `${(data.value / (BARS_COUNT - 1)) * 100}% center`;
+            
+            if (highlight) {
+                bar.classList.add('active');
+                playNote(200 + (data.value * 25));
+                await sleep(getDelay());
+                bar.classList.remove('active');
+            }
+        }
+
+        async function swapVisual(idx1, idx2) {
+            if (abortController.signal.aborted) throw new Error('Aborted');
+            const temp = arrayData[idx1];
+            arrayData[idx1] = arrayData[idx2];
+            arrayData[idx2] = temp;
+            setBar(idx1, arrayData[idx1], true);
+            await setBar(idx2, arrayData[idx2], true);
+        }
+
+        // --- ALGORITHMS ---
+        async function bubbleSort() {
+            const n = arrayData.length;
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n - i - 1; j++) {
+                    if (arrayData[j].value > arrayData[j + 1].value) await swapVisual(j, j + 1);
+                    else await setBar(j, arrayData[j], true);
+                }
+            }
+        }
+
+        async function selectionSort() {
+            const n = arrayData.length;
+            for (let i = 0; i < n; i++) {
+                let min_idx = i;
+                for (let j = i + 1; j < n; j++) {
+                    await setBar(j, arrayData[j], true);
+                    if (arrayData[j].value < arrayData[min_idx].value) min_idx = j;
+                }
+                if (min_idx !== i) await swapVisual(i, min_idx);
+            }
+        }
+
+        async function insertionSort() {
+            const n = arrayData.length;
+            for (let i = 1; i < n; i++) {
+                let keyData = { ...arrayData[i] };
+                let j = i - 1;
+                await setBar(i, arrayData[i], true);
+                while (j >= 0 && arrayData[j].value > keyData.value) {
+                    arrayData[j + 1] = { ...arrayData[j] };
+                    await setBar(j + 1, arrayData[j + 1], true);
+                    j = j - 1;
+                }
+                arrayData[j + 1] = keyData;
+                await setBar(j + 1, arrayData[j + 1], true);
+            }
+        }
+
+        async function mergeSort(l, r) {
+            if (l >= r) return;
+            const m = l + Math.floor((r - l) / 2);
+            await mergeSort(l, m);
+            await mergeSort(m + 1, r);
+            await merge(l, m, r);
+        }
+
+        async function merge(l, m, r) {
+            let n1 = m - l + 1, n2 = r - m;
+            let L = new Array(n1), R = new Array(n2);
+            for (let i = 0; i < n1; i++) L[i] = { ...arrayData[l + i] };
+            for (let j = 0; j < n2; j++) R[j] = { ...arrayData[m + 1 + j] };
+
+            let i = 0, j = 0, k = l;
+            while (i < n1 && j < n2) {
+                if (L[i].value <= R[j].value) { arrayData[k] = L[i]; i++; } 
+                else { arrayData[k] = R[j]; j++; }
+                await setBar(k, arrayData[k], true);
+                k++;
+            }
+            while (i < n1) { arrayData[k] = L[i]; await setBar(k, arrayData[k], true); i++; k++; }
+            while (j < n2) { arrayData[k] = R[j]; await setBar(k, arrayData[k], true); j++; k++; }
+        }
+
+        async function partition(low, high) {
+            let pivot = arrayData[high].value;
+            let i = (low - 1);
+            for (let j = low; j <= high - 1; j++) {
+                await setBar(j, arrayData[j], true);
+                if (arrayData[j].value < pivot) { i++; await swapVisual(i, j); }
+            }
+            await swapVisual(i + 1, high);
+            return (i + 1);
+        }
+
+        async function quickSort(low, high) {
+            if (low < high) {
+                let pi = await partition(low, high);
+                await quickSort(low, pi - 1);
+                await quickSort(pi + 1, high);
+            }
+        }
+
+        async function heapify(n, i) {
+            let largest = i, l = 2 * i + 1, r = 2 * i + 2;
+            if (l < n && arrayData[l].value > arrayData[largest].value) largest = l;
+            if (r < n && arrayData[r].value > arrayData[largest].value) largest = r;
+            if (largest != i) {
+                await swapVisual(i, largest);
+                await heapify(n, largest);
+            }
+        }
+
+        async function heapSort() {
+            let n = arrayData.length;
+            for (let i = Math.floor(n / 2) - 1; i >= 0; i--) await heapify(n, i);
+            for (let i = n - 1; i > 0; i--) {
+                await swapVisual(0, i);
+                await heapify(i, 0);
+            }
+        }
+
+        async function countingSortForRadix(exp) {
+            let n = arrayData.length;
+            let output = new Array(n);
+            let count = new Array(10).fill(0);
+            for (let i = 0; i < n; i++) {
+                let index = Math.floor(arrayData[i].value / exp) % 10;
+                count[index]++;
+                await setBar(i, arrayData[i], true);
+            }
+            for (let i = 1; i < 10; i++) count[i] += count[i - 1];
+            for (let i = n - 1; i >= 0; i--) {
+                let index = Math.floor(arrayData[i].value / exp) % 10;
+                output[count[index] - 1] = { ...arrayData[i] };
+                count[index]--;
+            }
+            for (let i = 0; i < n; i++) {
+                arrayData[i] = { ...output[i] };
+                await setBar(i, arrayData[i], true);
+            }
+        }
+
+        async function radixSort() {
+            let max = Math.max(...arrayData.map(d => d.value));
+            for (let exp = 1; Math.floor(max / exp) > 0; exp *= 10) await countingSortForRadix(exp);
+        }
+
+        async function shellSort() {
+            let n = arrayData.length;
+            for (let gap = Math.floor(n / 2); gap > 0; gap = Math.floor(gap / 2)) {
+                for (let i = gap; i < n; i += 1) {
+                    let temp = { ...arrayData[i] };
+                    let j;
+                    await setBar(i, arrayData[i], true);
+                    for (j = i; j >= gap && arrayData[j - gap].value > temp.value; j -= gap) {
+                        arrayData[j] = { ...arrayData[j - gap] };
+                        await setBar(j, arrayData[j], true);
+                    }
+                    arrayData[j] = temp;
+                    await setBar(j, arrayData[j], true);
+                }
+            }
+        }
+
+        async function finishAnimation() {
+            for (let i = 0; i < arrayData.length; i++) {
+                const bar = document.getElementById(`bar-${i}`);
+                bar.classList.add('active');
+                playNote(400 + (i * 20));
+                await sleep(50);
+                bar.classList.remove('active');
+            }
+            playNote(800);
+        }
+
+        async function startSorting() {
+            if (isSorting) return;
+            initAudio(); 
+            isSorting = true;
+            abortController = new AbortController();
+            const btn = document.getElementById('startBtn');
+            btn.innerHTML = '⏹️ Memproses...';
+            btn.classList.replace('bg-blue-600', 'bg-red-600');
+
+            const algo = document.getElementById('algoSelect').value;
+
+            try {
+                switch(algo) {
+                    case 'bubble': await bubbleSort(); break;
+                    case 'selection': await selectionSort(); break;
+                    case 'insertion': await insertionSort(); break;
+                    case 'merge': await mergeSort(0, arrayData.length - 1); break;
+                    case 'quick': await quickSort(0, arrayData.length - 1); break;
+                    case 'heap': await heapSort(); break;
+                    case 'radix': await radixSort(); break;
+                    case 'shell': await shellSort(); break;
+                }
+                await finishAnimation();
+            } catch (e) {
+                if(e.message !== 'Aborted') console.error(e);
+            } finally {
+                isSorting = false;
+                btn.innerHTML = '▶️ Mulai Animasi';
+                btn.classList.replace('bg-red-600', 'bg-blue-600');
+            }
+        }
+
+        window.onload = () => {
+            generateArray(true);
+            updateUI();
+        };
+    </script>
+</body>
+</html>
